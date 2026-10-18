@@ -9,8 +9,7 @@
 - **Every site is checked.** The patcher compares each site's original bytes (opcode and operand) before writing and
   aborts on any mismatch, using explicit checks that also run under `python -O`.
 - **The backup stays untouched.** Never edit the live game file by hand, and never modify or delete the `.bak`.
-  Build with `--dry-run --out build\...` and install with `ra3fps\install.ps1`, which verifies the `.bak` before
-  copying.
+  Install with `Install.cmd` or `ra3fps\install.ps1`, which verify the `.bak` before copying.
 - **No game data in git.** The `.gitignore` covers `*.game`, `*.bak`, `*.exe`, `*.pkl`, shader dumps and `build/`.
 
 ## Setup
@@ -89,6 +88,53 @@ python tools\verify_build.py build\ra3_1.12_90fps.game
   area starts a block: code blocks are disassembled, data blocks are shown as floats, each with the sites that
   reference it.
 - Exits with status 1 if any non-zero cave byte is not part of a referenced block.
+
+### Installer test: `tests/test_install.py`
+
+```powershell
+python tests\test_install.py                   # about 15 s; the game folder is only read
+python tests\test_install.py --with-download   # also the portable Python path (downloads about 12 MB)
+```
+
+It runs `ra3fps\install.ps1` in Windows PowerShell with `-NoElevate` and `-GameDir` pointing at temporary copies of
+the original game file, and checks:
+
+- install 90 FPS on a fresh folder (creates the `.bak`, result equals the patcher's output), again (no change),
+  switch to 60 FPS, restore, restore again; `-GameDir` as the Data folder, the game folder or the file; `-Build`;
+- that a modified game file without a `.bak`, a modified `.bak`, and a game running from that folder (a stand-in
+  process with the game file's name and path) are refused without changes;
+- that the temporary work folder is removed after every run.
+
+The UAC elevation step needs a real prompt and is not covered.
+
+## Installer
+
+`ra3fps/install.ps1` is the only installer; `Install.cmd` starts it with the execution policy bypassed and pauses
+when it was double-clicked. With `-Fps` it runs `ra3_fps_patch.py` from the same folder on:
+
+1. the `-Python` executable, if given;
+2. otherwise `py -3`, `python` or `python3`, whichever runs and is 3.8 or newer (the Microsoft Store alias fails the
+   check);
+3. otherwise the python.org Windows embeddable package for the OS architecture (AMD64, ARM64 or x86), downloaded
+   into `%TEMP%\RA3-FPS-Mod-<guid>`, checked against the SHA-256 published on its release page, and removed with the
+   build output when the script ends. To update it, change `$PortablePythonVersion` and the three
+   `$PortablePythonPackages` entries (file names and SHA-256 values from the python.org release page).
+
+The game file is found from `-GameDir`, else the folders above the script, the `Install Dir` of
+`HKLM\SOFTWARE\(WOW6432Node\)Electronic Arts\Electronic Arts\Red Alert 3` (the EA App records the parent folder, so
+both `<dir>\Data` and `<dir>\Red Alert 3\Data` are tried), then the EA App default. Building runs as the user; only the
+copy into the game folder is elevated, when that folder is not writable.
+
+## Release package
+
+A release attaches a zip of the user-facing files at the release tag:
+
+```powershell
+git archive --format=zip --prefix=RA3-FPS-Mod-v1.0.0/ -o build\RA3-FPS-Mod-v1.0.0.zip v1.0.0 `
+    Install.cmd ra3fps README.md LICENSE
+```
+
+It holds no game data and nothing generated: players run the same `install.ps1` and `ra3_fps_patch.py`.
 
 ## Instruction cache: `tools/build_insn_cache.py`
 

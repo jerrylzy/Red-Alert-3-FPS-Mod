@@ -30,33 +30,55 @@ Details are in [docs/how-it-works.md](docs/how-it-works.md) and [docs/particles.
 ## Requirements
 
 - Red Alert 3 v1.12: `Data\ra3_1.12.game` of the EA App / Steam release, SHA-256
-  `07951DA773B7A6D77ACA5ABD7F27EF8FC9647623C0BC92BB7DDF367455CDBB28`. The patcher refuses any other file.
+  `07951DA773B7A6D77ACA5ABD7F27EF8FC9647623C0BC92BB7DDF367455CDBB28`. The installer and the patcher refuse any other
+  file.
+- Red Alert 3: Uprising is not supported yet; support for it is being explored.
 - Tested with Community Patch 1.12.8 installed, offline (skirmish) only.
-- Windows and Python 3. The patcher only uses the standard library.
+- Windows 10 or 11. Python 3.8 or newer is used if it is installed; otherwise the installer fetches a temporary
+  portable Python (see below).
 
-## Build, install, restore
+## Install
+
+1. Download `RA3-FPS-Mod-<version>.zip` from the
+   [latest release](https://github.com/jerrylzy/Red-Alert-3-FPS-Mod/releases/latest) and extract it anywhere.
+2. Exit Red Alert 3 and double-click `Install.cmd`.
+3. Choose `1` (90 FPS) and approve the administrator prompt.
+4. To go back to stock, run `Install.cmd` again and choose `3`.
+
+What the installer does:
+
+- **Builds on your PC.** It finds the game (through the registry or the EA App default folder, otherwise it asks),
+  then builds the patched file from your own game file with `ra3fps\ra3_fps_patch.py`. No game files are downloaded
+  or included.
+- **Needs no setup.** The patcher runs on Python 3.8 or newer. If none is installed, the installer downloads the
+  official portable Python 3.14.8 from python.org into a temporary folder (about 12 MB), checks it against its
+  published SHA-256 and deletes it afterwards. Nothing is installed on the system.
+- **Keeps the original safe.** It only accepts the original v1.12 file, keeps it as `ra3_1.12.game.bak` (never
+  modified or deleted), refuses to run while the game is running, and prints the verified SHA-256 of the result.
+- If Windows warns about the downloaded `Install.cmd`, right-click the zip, choose **Properties**, tick **Unblock**,
+  and extract it again.
+
+### From the repository
 
 Run these from the repository folder in PowerShell:
 
 ```powershell
-# 1. Build the patched file into build\ (the game folder is not touched); add --fps 60 for 60 FPS
+.\Install.cmd                                    # the same menu
+.\ra3fps\install.ps1 -Fps 90                     # or without the menu (-Fps 60 for 60 FPS)
+.\ra3fps\install.ps1 -Restore                    # back to stock
+
+# Build only (the game folder is not touched), then install that file
 python ra3fps\ra3_fps_patch.py --dry-run --out build\ra3_1.12_90fps.game
-
-# 2. Install it (asks for administrator rights, verifies the backup first, prints the verified hash)
 .\ra3fps\install.ps1 -Build build\ra3_1.12_90fps.game
-
-# 3. Back to stock at any time
-.\ra3fps\install.ps1 -Restore
 ```
 
-- The default game folder is `C:\Program Files\EA Games\Command and Conquer Red Alert 3\Red Alert 3\Data`. For
-  another install, pass `--game <path to ra3_1.12.game>` to the patcher and `-GameDir <Data folder>` to
-  `install.ps1`.
+- For another install, pass `-GameDir <Data folder or game folder>` to `install.ps1` and
+  `--game <path to ra3_1.12.game>` to the patcher.
 - The patcher reads the original from `ra3_1.12.game.bak`, or from `ra3_1.12.game` itself while it is still
   unmodified. On first install, `install.ps1` creates the `.bak` from the verified original. Backups are never
   modified or deleted.
 - If script execution is disabled, run
-  `powershell -ExecutionPolicy Bypass -File .\ra3fps\install.ps1 -Build build\ra3_1.12_90fps.game`.
+  `powershell -ExecutionPolicy Bypass -File .\ra3fps\install.ps1 -Fps 90`, or use `Install.cmd`.
 
 ## Known limitations
 
@@ -91,11 +113,13 @@ All rights to Red Alert 3 belong to Electronic Arts. This repository ships no ga
 - [docs/development.md](docs/development.md): tools, verification, reference hashes, particle monitor.
 
 ```
+Install.cmd               double-click installer: menu with 90 FPS, 60 FPS and restore (runs ra3fps/install.ps1)
 ra3fps/ra3_fps_patch.py   the patcher
-ra3fps/install.ps1        installs a build or restores the original (self-elevating, hash-verified)
+ra3fps/install.ps1        builds and installs the patch or a given build, or restores the original (finds the game
+                          and Python, self-elevating, hash-verified)
 tools/                    developer tools (disassembly cache and helper, build verifier, shader disassembler,
                           read-only particle monitor)
-tests/                    emulator tests of the particle and unit-physics code caves
+tests/                    emulator tests of the particle and unit-physics code caves, end-to-end installer test
 docs/                     documentation
 build/                    local outputs (ignored by git)
 ```
