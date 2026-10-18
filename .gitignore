@@ -1,0 +1,20 @@
+# Game files and anything derived from them: never commit
+*.game
+*.bak
+*.exe
+*.pkl
+*.bin
+*.fxo
+*.big
+*.json.gz
+vs_*.txt
+
+# Local build outputs, analysis targets and logs
+build/
+out/
+target/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
